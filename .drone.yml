@@ -1,0 +1,25 @@
+build:
+  image: golang:1.6
+  commands:
+    - go vet
+    - go test git.murf.org/damian/ups-exporter
+    - go install
+
+publish:
+  docker:
+    registry: quay.io
+    username: $$QUAY_USERNAME
+    password: $$QUAY_TOKEN
+    email: $$QUAY_EMAIL
+    repo: damomurf/ups-exporter
+    context: /drone
+    storage_driver: vfs
+    tag:
+      - latest
+      - "$$BUILD_NUMBER"
+
+notify:
+  slack:
+    webhook_url: $$SLACK_WEBHOOK_URL
+    recipient: spud
+    username: drone
