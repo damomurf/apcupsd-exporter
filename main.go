@@ -172,8 +172,6 @@ func main() {
 			data, err := retrieveData(*upsAddr)
 			if err != nil {
 				log.Printf("Error: %+v", err)
-			} else {
-				fmt.Printf("%+v", data)
 			}
 
 			info, err := transformData(data)
