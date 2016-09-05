@@ -18,185 +18,143 @@ import (
 // map[VERSION:3.14.10 (13 September 2011) debian MINTIMEL:3 Minutes BATTDATE:2014-10-21 END APC:2016-08-30 17 NUMXFERS:0 NOMPOWER:480 Watts NOMINV:230 Volts FIRMWARE:925.T1 .I USB FW APC:001,036,0923 STATUS:ONLINE BCHARGE:100.0 Percent TONBATT:0 seconds HOSTNAME:beaker.murf.org CABLE:USB Cable TIMELEFT:104.6 Minutes SELFTEST:NO ALARMDEL:30 seconds STATFLAG:0x07000008 Status Flag DATE:2016-08-30 17 UPSMODE:Stand Alone MAXTIME:0 Seconds SENSE:Medium HITRANS:280.0 Volts LASTXFER:Unacceptable line voltage changes XOFFBATT:N/A SERIALNO:3B1443X05291 UPSNAME:backups-950 DRIVER:USB UPS Driver STARTTIME:2016-08-30 16 LOADPCT:5.0 Percent Load Capacity MBATTCHG:5 Percent LOTRANS:155.0 Volts BATTV:13.5 Volts CUMONBATT:0 seconds MODEL:Back-UPS XS 950U LINEV:242.0 Volts NOMBATTV:12.0 Volts
 
 type upsInfo struct {
-	up bool
+	status string
 
 	nomPower             float64
 	batteryChargePercent float64
 
 	timeOnBattery    time.Duration
 	timeLeft         time.Duration
-	minTimeLeft      time.Duration
 	cumTimeOnBattery time.Duration
 
-	loadPercent             float64
-	minBatteryChargePercent float64
+	loadPercent float64
 
 	batteryVoltage    float64
 	lineVoltage       float64
 	nomBatteryVoltage float64
 	nomInputVoltage   float64
-	hiTransVoltage    float64
-	loTransVoltage    float64
 
 	hostname string
 	upsName  string
 }
 
 var (
+	labels = []string{"hostname", "upsname"}
+
+	status = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "apcups_status",
+		Help: "Current status of UPS",
+	},
+		append(labels, "status"),
+	)
+
 	nominalPower = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_nominal_power",
+		Name: "apcups_nominal_power_watts",
 		Help: "Nominal UPS Power",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	batteryChargePercent = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_battery_charge_percent",
+		Name: "apcups_battery_charge_percent",
 		Help: "Percentage Battery Charge",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	loadPercent = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_load_percent",
+		Name: "apcups_load_percent",
 		Help: "Percentage Battery Load",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	timeOnBattery = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_time_on_battery",
+		Name: "apcups_time_on_battery_seconds",
 		Help: "Total time on UPS battery",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	timeLeft = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_time_left",
+		Name: "apcups_time_left_seconds",
 		Help: "Time on UPS battery",
 	},
-		[]string{"hostname", "upsname"},
-	)
-
-	minTimeLeft = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_min_time_left",
-		Help: "Time on UPS battery",
-	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	cumTimeOnBattery = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_cum_time_on_battery",
+		Name: "apcups_cum_time_on_battery_seconds",
 		Help: "Cumululative Time on UPS battery",
 	},
-		[]string{"hostname", "upsname"},
-	)
-
-	minBatteryChargePercent = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_min_battery_charge_percent",
-		Help: "Minimum Battery Charge Percent",
-	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	batteryVoltage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_battery_voltage",
+		Name: "apcups_battery_volts",
 		Help: "UPS Battery Voltage",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	lineVoltage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_line_voltage",
+		Name: "apcups_line_volts",
 		Help: "UPS Line Voltage",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	nomBatteryVoltage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_nom_battery_votage",
+		Name: "apcups_nom_battery_volts",
 		Help: "UPS Nominal Battery Voltage",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
 	nomInputVoltage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_nom_input_votage",
+		Name: "apcups_nom_input_volts",
 		Help: "UPS Nominal Input Voltage",
 	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 
-	hiTransVoltage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_hi_trans_voltage",
-		Help: "UPS High Transimission Voltage",
+	collectSeconds = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "apcups_collect_time_seconds",
+		Help: "Time to collect stats for last poll of UPS network interface",
 	},
-		[]string{"hostname", "upsname"},
-	)
-
-	loTransVoltage = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Name: "ups_lo_trans_voltage",
-		Help: "UPS Low Transimission Voltage",
-	},
-		[]string{"hostname", "upsname"},
+		labels,
 	)
 )
 
 func main() {
+
+	// TODO: Register a port for listening here: https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 	addr := flag.String("listen-address", ":8080", "The address to listen on for HTTP requests.")
-	upsAddr := flag.String("ups-address", "", "The address of the acupsd daemon to query.")
+	upsAddr := flag.String("ups-address", "", "The address of the acupsd daemon to query: hostname:port")
 	flag.Parse()
 
 	log.Printf("Connection to UPS at: %s", *upsAddr)
 	log.Printf("Metric listener at: %s", *addr)
 
+	prometheus.MustRegister(status)
 	prometheus.MustRegister(nominalPower)
 	prometheus.MustRegister(batteryChargePercent)
 	prometheus.MustRegister(timeOnBattery)
 	prometheus.MustRegister(timeLeft)
-	prometheus.MustRegister(minTimeLeft)
 	prometheus.MustRegister(cumTimeOnBattery)
 	prometheus.MustRegister(loadPercent)
-	prometheus.MustRegister(minBatteryChargePercent)
 	prometheus.MustRegister(batteryVoltage)
 	prometheus.MustRegister(lineVoltage)
 	prometheus.MustRegister(nomBatteryVoltage)
 	prometheus.MustRegister(nomInputVoltage)
-	prometheus.MustRegister(hiTransVoltage)
-	prometheus.MustRegister(loTransVoltage)
+	prometheus.MustRegister(collectSeconds)
 
 	go func() {
 		c := time.Tick(10 * time.Second)
 		for _ = range c {
-
-			data, err := retrieveData(*upsAddr)
-			if err != nil {
-				log.Printf("Error: %+v", err)
+			if err := collectUPSData(upsAddr); err != nil {
+				log.Printf("Error collecting UPS data: %+v", err)
 			}
-
-			info, err := transformData(data)
-			if err != nil {
-				log.Printf("Error converting Data: %+v", err)
-			}
-
-			nominalPower.WithLabelValues(info.hostname, info.upsName).Set(info.nomPower)
-
-			batteryChargePercent.WithLabelValues(info.hostname, info.upsName).Set(info.batteryChargePercent)
-			timeOnBattery.WithLabelValues(info.hostname, info.upsName).Set(info.timeOnBattery.Seconds())
-
-			timeLeft.WithLabelValues(info.hostname, info.upsName).Set(info.timeLeft.Seconds())
-			minTimeLeft.WithLabelValues(info.hostname, info.upsName).Set(info.minTimeLeft.Seconds())
-
-			cumTimeOnBattery.WithLabelValues(info.hostname, info.upsName).Set(info.minTimeLeft.Seconds())
-			loadPercent.WithLabelValues(info.hostname, info.upsName).Set(info.loadPercent)
-			minBatteryChargePercent.WithLabelValues(info.hostname, info.upsName).Set(info.minBatteryChargePercent)
-			batteryVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.batteryVoltage)
-			lineVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.lineVoltage)
-			nomBatteryVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.nomBatteryVoltage)
-			nomInputVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.nomInputVoltage)
-			hiTransVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.hiTransVoltage)
-			loTransVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.loTransVoltage)
-
 		}
 
 	}()
@@ -205,13 +163,49 @@ func main() {
 	http.ListenAndServe(*addr, nil)
 }
 
+func collectUPSData(upsAddr *string) error {
+
+	gatherStart := time.Now()
+
+	data, err := retrieveData(*upsAddr)
+	if err != nil {
+		return err
+	}
+
+	gatherDuration := time.Now().Sub(gatherStart)
+
+	info, err := transformData(data)
+	if err != nil {
+		return err
+	}
+	collectSeconds.WithLabelValues(info.hostname, info.upsName).Set(gatherDuration.Seconds())
+
+	log.Printf("%+v", info)
+
+	status.WithLabelValues(info.hostname, info.upsName, info.status).Set(1)
+
+	nominalPower.WithLabelValues(info.hostname, info.upsName).Set(info.nomPower)
+
+	batteryChargePercent.WithLabelValues(info.hostname, info.upsName).Set(info.batteryChargePercent)
+	timeOnBattery.WithLabelValues(info.hostname, info.upsName).Set(info.timeOnBattery.Seconds())
+
+	timeLeft.WithLabelValues(info.hostname, info.upsName).Set(info.timeLeft.Seconds())
+
+	cumTimeOnBattery.WithLabelValues(info.hostname, info.upsName).Set(info.cumTimeOnBattery.Seconds())
+	loadPercent.WithLabelValues(info.hostname, info.upsName).Set(info.loadPercent)
+	batteryVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.batteryVoltage)
+	lineVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.lineVoltage)
+	nomBatteryVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.nomBatteryVoltage)
+	nomInputVoltage.WithLabelValues(info.hostname, info.upsName).Set(info.nomInputVoltage)
+
+	return nil
+}
+
 func transformData(ups map[string]string) (*upsInfo, error) {
 
 	upsInfo := &upsInfo{}
 
-	if ups["STATUS"] == "ONLINE" {
-		upsInfo.up = true
-	}
+	upsInfo.status = strings.ToLower(ups["STATUS"])
 
 	if nomPower, err := parseUnits(ups["NOMPOWER"]); err != nil {
 		return nil, err
@@ -237,12 +231,6 @@ func transformData(ups map[string]string) (*upsInfo, error) {
 		upsInfo.timeLeft = time
 	}
 
-	if time, err := parseTime(ups["MINTIMEL"]); err != nil {
-		return nil, err
-	} else {
-		upsInfo.minTimeLeft = time
-	}
-
 	if time, err := parseTime(ups["CUMONBATT"]); err != nil {
 		return nil, err
 	} else {
@@ -253,12 +241,6 @@ func transformData(ups map[string]string) (*upsInfo, error) {
 		return nil, err
 	} else {
 		upsInfo.loadPercent = percent
-	}
-
-	if percent, err := parseUnits(ups["MBATTCHG"]); err != nil {
-		return nil, err
-	} else {
-		upsInfo.minBatteryChargePercent = percent
 	}
 
 	if volts, err := parseUnits(ups["BATTV"]); err != nil {
@@ -283,18 +265,6 @@ func transformData(ups map[string]string) (*upsInfo, error) {
 		return nil, err
 	} else {
 		upsInfo.nomInputVoltage = volts
-	}
-
-	if volts, err := parseUnits(ups["HITRANS"]); err != nil {
-		return nil, err
-	} else {
-		upsInfo.hiTransVoltage = volts
-	}
-
-	if volts, err := parseUnits(ups["LOTRANS"]); err != nil {
-		return nil, err
-	} else {
-		upsInfo.loTransVoltage = volts
 	}
 
 	upsInfo.hostname = ups["HOSTNAME"]
