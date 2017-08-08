@@ -1,4 +1,4 @@
-FROM prom/busbox:glibc
+FROM prom/busybox:glibc
 
 COPY ./ups-exporter /bin/ups-exporter
 
