@@ -11,7 +11,7 @@ pipeline:
     commands:
     - go vet -x $(go list)
     - go test github.com/damomurf/apcupsd-exporter
-    - go install
+    - go build -o apcupsd-exporter cmd/pipeline/main.go
 
 - docker:
     secrets:
