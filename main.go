@@ -130,7 +130,7 @@ func main() {
 
 	// TODO: Register a port for listening here: https://github.com/prometheus/prometheus/wiki/Default-port-allocations
 	addr := flag.String("listen-address", ":8080", "The address to listen on for HTTP requests.")
-	upsAddr := flag.String("ups-address", "", "The address of the acupsd daemon to query: hostname:port")
+	upsAddr := flag.String("ups-address", "localhost:3551", "The address of the acupsd daemon to query: hostname:port")
 	flag.Parse()
 
 	log.Printf("Connection to UPS at: %s", *upsAddr)
