@@ -1,8 +1,7 @@
-FROM golang:1.6.1
-MAINTAINER damian@murf.org
+FROM prom/busbox:glibc
 
-COPY ./bin/ups-exporter /
+COPY ./ups-exporter /bin/ups-exporter
 
 EXPOSE 9099
 
-ENTRYPOINT ["/ups-exporter"]
+ENTRYPOINT ["/bin/ups-exporter"]

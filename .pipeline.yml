@@ -1,0 +1,21 @@
+pipeline:
+
+- clone:
+    git:
+      repository: https://github.com/damomurf/apcupsd-exporter.git
+      branch: master
+
+- build:
+    image: golang:1.8
+    workdir: /go/src/github.com/damomurf/apcupsd-exporter
+    commands:
+    - go vet -x $(go list)
+    - go test github.com/damomurf/apcupsd-exporter
+    - go install
+
+- docker:
+    secrets:
+    - name: quay-io-secret
+      path: /root/.docker
+    docker:
+      repository: quay.io/damomurf/apcupsd-exporter
