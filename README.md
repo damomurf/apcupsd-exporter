@@ -25,6 +25,7 @@ apcups_status{hostname="beaker.murf.org",status="trim",upsname="backups-950"} 0
 ```
 
 2. `apc_status_numeric` is a single metric with value as per the following status table
+
 | status        | value |
 |---------------|-------|
 | online        | 0     |
