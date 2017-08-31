@@ -38,6 +38,23 @@ type upsInfo struct {
 	upsName  string
 }
 
+// See SVN code at https://sourceforge.net/p/apcupsd/svn/HEAD/tree/trunk/src/lib/apcstatus.c#l166 for
+// list of statuses.
+var statusList = []string{
+	"online",
+	"onbatt",
+	"trim",
+	"boost",
+	"overload",
+	"lowbatt",
+	"replacebatt",
+	"nobatt",
+	"slave",
+	"slavedown",
+	"commlost",
+	"shutting down",
+}
+
 var (
 	labels = []string{"hostname", "upsname"}
 
@@ -46,6 +63,13 @@ var (
 		Help: "Current status of UPS",
 	},
 		append(labels, "status"),
+	)
+
+	statusNumeric = prometheus.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "apcups_status_numeric",
+		Help: "Current status of UPS represented as integer",
+	},
+		labels,
 	)
 
 	nominalPower = prometheus.NewGaugeVec(prometheus.GaugeOpts{
@@ -137,6 +161,7 @@ func main() {
 	log.Printf("Metric listener at: %s", *addr)
 
 	prometheus.MustRegister(status)
+	prometheus.MustRegister(statusNumeric)
 	prometheus.MustRegister(nominalPower)
 	prometheus.MustRegister(batteryChargePercent)
 	prometheus.MustRegister(timeOnBattery)
@@ -181,6 +206,15 @@ func collectUPSData(upsAddr *string) error {
 	collectSeconds.WithLabelValues(info.hostname, info.upsName).Set(gatherDuration.Seconds())
 
 	log.Printf("%+v", info)
+
+	for i, stat := range statusList {
+		if stat == info.status {
+			status.WithLabelValues(info.hostname, info.upsName, stat).Set(1)
+			statusNumeric.WithLabelValues(info.hostname, info.upsName).Set(float64(i))
+		} else {
+			status.WithLabelValues(info.hostname, info.upsName, stat).Set(0)
+		}
+	}
 
 	status.WithLabelValues(info.hostname, info.upsName, info.status).Set(1)
 
