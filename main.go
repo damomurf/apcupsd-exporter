@@ -42,9 +42,9 @@ type upsInfo struct {
 // list of statuses.
 var statusList = []string{
 	"online",
+	"onbatt",
 	"trim",
 	"boost",
-	"onbatt",
 	"overload",
 	"lowbatt",
 	"replacebatt",
