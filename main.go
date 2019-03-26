@@ -316,6 +316,9 @@ func parseTime(t string) (time.Duration, error) {
 
 // parse generic units, splitting of units name and converting to float
 func parseUnits(v string) (float64, error) {
+	if v == ""{
+		return 0, nil
+	}
 	return strconv.ParseFloat(strings.Split(v, " ")[0], 32)
 }
 
