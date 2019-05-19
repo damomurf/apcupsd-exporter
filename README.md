@@ -32,14 +32,13 @@ apcups_status{hostname="beaker.murf.org",status="trim",upsname="backups-950"} 0
 | onbatt        | 1     |
 | trim          | 2     |
 | boost         | 3     |
-| onbatt        | 4     |
-| overload      | 5     |
-| lowbatt       | 6     |
-| replacebatt   | 7     |
-| nobatt        | 8     |
-| slave         | 9     |
-| slavedown     | 10    |
-| commlost      | 11    |
-| shutting down | 12    |
+| overload      | 4     |
+| lowbatt       | 5     |
+| replacebatt   | 6     |
+| nobatt        | 7     |
+| slave         | 8     |
+| slavedown     | 9     |
+| commlost      | 10    |
+| shutting down | 11    |
 
 
