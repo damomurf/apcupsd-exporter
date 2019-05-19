@@ -309,6 +309,9 @@ func transformData(ups map[string]string) (*upsInfo, error) {
 
 // parse time strings like 30 seconds or 1.25 minutes
 func parseTime(t string) (time.Duration, error) {
+	if t == ""{
+		return 0, nil
+	}
 	chunks := strings.Split(t, " ")
 	fmtStr := chunks[0] + string(strings.ToLower(chunks[1])[0])
 	return time.ParseDuration(fmtStr)
